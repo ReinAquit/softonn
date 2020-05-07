@@ -1,14 +1,14 @@
-// arduino single ended oscilloscope program
-// J.F. van der Bent April 2020
+// arduino single ended oscilloscope & andfunction generator program
 // used for the introductionlab first year Embedded systems
+// 2020 April
+// Rein Lenting & Renzo van Haren
 
-#define PWM_SINUS_OUTPUT_BIT    PIND2   // PWM pin
+//Define the signal output pin
+#define PWM_SINUS_OUTPUT_BIT    PIND2   //PWM pin digital 2
 
 //storage variables
 boolean flag = 1;
-boolean toggle = 0;
-int sensorValue = 0;
-char p;
+boolean toggle = 0; //!
 unsigned int data[100];
 String val;
 int triggerVal = 512;
@@ -16,6 +16,8 @@ bool triggered = false;
 char triggerMode = 1;
 volatile static char triggerCount = 0;
 int waveForm = 1;
+
+//Degine the types of signals in a lookup table
 uint8_t signals[3][20] =
 {
   { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -30,6 +32,12 @@ uint8_t signals[3][20] =
 };
 //   0    1    2    3    4    5    6    7    8    9
 
+
+/*********************************************************************************************************
+*ADC: Initialize ACD converter
+*args: none
+*returns: none
+**********************************************************************************************************/
 void ACD_init()
 {
   ADMUX = (1 << REFS0); //default Ch-0; Vref = 5V
@@ -38,15 +46,24 @@ void ACD_init()
 }
 
 
+/*********************************************************************************************************
+*setup: Main setup of the program
+*args: none
+*returns: none
+*********************************************************************************************************/
 void setup()
 {
+  //Begin serial comunications
   Serial.begin(115200);
+
+  //Setting pins 13, 2, 3 & 4 as output
   pinMode(13, OUTPUT);
   pinMode(2, OUTPUT);
   pinMode(3, OUTPUT);
   pinMode(4, OUTPUT);
-  pinMode(13, OUTPUT);
-  ACD_init();         // init AD converter channel A0
+
+  // init ADC converter channel A0
+  ACD_init();
 
   cli();//stop interrupts
 
@@ -87,10 +104,17 @@ void setup()
     TIMSK2 |= (1 << OCIE2A);
   */
   sei();//allow interrupts
+
   DDRD |= 1 << (PWM_SINUS_OUTPUT_BIT); // Set output port PINB3 (Arduino board pin 11)
 }
 
+
 //code voor Franc interrupt timer 2 met lookup table
+/*********************************************************************************************************
+*ISR: Interupt routine timer 2 compare register A
+*args: TIMER2_COMPA_vect
+*returns: none
+**********************************************************************************************************/
 /*
   ISR(TIMER2_COMPA_vect)
   {
@@ -110,110 +134,138 @@ void setup()
   }
 */
 
+
+/*********************************************************************************************************
+*ISR: Interupt routine timer 1 compare register A
+*args: TIMER1_COMPA_vect
+*returns: none
+**********************************************************************************************************/
 ISR(TIMER1_COMPA_vect)
 {
   //loads a sample buffer of 100 at 1 sample every 1ms
   static char count = 0;
 
   ADCSRA |= (1 << ADSC);                // start a new conversion will take approximately 21us
-  while (ADCSRA & (1 << ADSC)); // wait for conversion to complete (long overdue)
+  while (ADCSRA & (1 << ADSC));         //wait for conversion to complete (long overdue)
 
+  //Load data in array
   data[count] = int(ADCL | (ADCH << 8));
 
+  //Checking is the trigger mode is in trigger mode
   if (triggerMode == 2) {
-    if (data[count] >= triggerVal && triggered == false) {
-      triggered = true;
-      triggerCount = count;
+    if (data[count] >= triggerVal && triggered == false) {    //When the data value is higher than the trigger value then thrigger once
+      triggered = true;                                       //Triggerd
+      triggerCount = count;                                   //set trigger count
     }
     
+    //Resetting counter back to 0 when it hits 100
     if (count++ == 100)
       count = 0;
-      
+
+    //Check is the buffer count is 50 point above trigger count
     if (triggered == true && (count % 50) == (triggerCount % 50)) {
       TIMSK1 = 0;     //buffer full stop timer interrupt
-      flag = 0;       // let the main know that timer is full
-      count = 0;
-      digitalWrite(13, LOW);
+      flag = 0;       //let the main know that timer is full
+      count = 0;      //Counter back to 0
+      digitalWrite(13, LOW); //Writing low to pin 13 (LED)
     }
 
   }
+  //Chekcing if triggermode is free running
   else if (triggerMode == 1) {
     if (count++ == 100)
     {
       TIMSK1 = 0;     //buffer full stop timer interrupt
-      flag = 0;       // let the main know that timer is full
-      count = 0;
+      flag = 0;       //let the main know that timer is full
+      count = 0;      //Counter back to 0
     }
   }
 
-  if (count % 20 > 9)
-    PORTD |= 1 << (PWM_SINUS_OUTPUT_BIT);
+  // Create block wave 0.05x speed of interupt
+  if ((count % 20) > 9)
+    PORTD |= 1 << (PWM_SINUS_OUTPUT_BIT);    //output on
   else
-    PORTD &= ~(1 << (PWM_SINUS_OUTPUT_BIT));
+    PORTD &= ~(1 << (PWM_SINUS_OUTPUT_BIT)); //output off
 }
 
 
-void loop() {
-  byte i;
+/*********************************************************************************************************
+*Loop: Main program loop
+*args: none
+*returns: none
+**********************************************************************************************************/
+void loop() 
+{
+  byte i; //Index, byte becouse it is used in a string function
+
   if (!flag)                        // wait for ISR buffer to fill to 100
   {
-
+    //Loop trough the buffer
     for (i = 0; i < 100; i++)
     {
-      if (triggerMode == 2) {
-        Serial.println((String((i + 50) % 100) + ":" + String(data[(i + triggerCount) % 100])));      // send 100 points to processing
-        data[(i + triggerCount) % 100] = 0;
+      if (triggerMode == 2) //Checking if trigger mode is in trigger mode
+      {
+        Serial.println((String((i + 50) % 100) + ":" + String(data[(i + triggerCount) % 100])));      // send 100 points to processing/ scope
+        data[(i + triggerCount) % 100] = 0; //Setting all the values back to 0
       }
-      if (triggerMode == 1) {
-
+      if (triggerMode == 1) //Checking if trigger mode in free running
+      {
         TIMSK1 |= (1 << OCIE1A);     //start timer
-        Serial.println((String(i) + ":" + String(data[i])));
+        Serial.println((String(i) + ":" + String(data[i]))); // Send datapoints to processing/ scope
       }
-
     }
 
-    triggerCount = 0;
+    triggerCount = 0;             //Reset trigger count
     flag = 1;                     // wait for next full buffer
-    Serial.println("1055" );        // special code for processing -- end of dataframe
+    Serial.println("1055" );      // special code for processing -- end of dataframe
   }
 
+  //Checking if data is availeble to read
   if (Serial.available())
-  { // If data is available to read,
+  {
 
+    //init vars for recieving data
     String sub_val;
     int value;
-    val = Serial.readString(); // read it and store it in val
-    val.trim();
-    sub_val = val.substring(val.indexOf(':') + 1);
-    value = sub_val.toInt();
-    switch (val[0]) {
-      case '1':
 
+    //read the recieved string and store it in val
+    val = Serial.readString();
+
+    //Remove all the spaces
+    val.trim();
+
+    //snip the data on ":"
+    sub_val = val.substring(val.indexOf(':') + 1);
+
+    //change the var sub_var to int and move it in to value
+    value = sub_val.toInt();
+
+    //switch case for handeling commands, commands are always at spot val "0"
+    switch (val[0]) {
+      case '1': //trigger on
         if (value == 1) {
           triggerMode = 1;
           TIMSK1 |= (1 << OCIE1A);     //start timer
           digitalWrite(13, LOW);
-        }
+        }       //Free running mode
         else if (value == 2) {
           triggerMode = 2;
           TIMSK1 |= (1 << OCIE1A);     //start timer
-          triggered = false;
+          triggered = false;           //Not so triggerd
 
           triggerCount = 0;
-          digitalWrite(13, HIGH);
+          digitalWrite(13, HIGH);     //Set LED high to display trigger active
         }
 
         break;
-      case '2':
+      case '2': //Switching wave form code
         waveForm = value;
         break;
-      case '3':
+      case '3': //switching tigger mode
         triggerVal = value;
         break;
-      case '4':
-        break;
+      default:
+        break;      //I want to break free
     }
-
-    sei();//allow interrupts
   }
 }
