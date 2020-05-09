@@ -17,6 +17,8 @@ char triggerMode = 1;
 volatile static char triggerCount = 0;
 int waveForm = 1;
 bool probeOn[] = {true, true};
+
+String probeData[2] = {"1056:0:", "1056:1:"};
 //Degine the types of signals in a lookup table
 uint8_t signals[3][20] =
 {
@@ -54,7 +56,7 @@ void ACD_init()
 void setup()
 {
   //Begin serial comunications
-  Serial.begin(115200);
+  Serial.begin(250000);
 
   //Setting pins 13, 2, 3 & 4 as output
   pinMode(13, OUTPUT);
@@ -198,29 +200,34 @@ void loop()
   if (!flag)                        // wait for ISR buffer to fill to 100
   {
     //Loop trough the buffer
-    for (i = 0; i < 100; i++)
+    for (j = 0; j < 2; j++)
     {
-      for (j = 0; j < 2; j++)
+      if (probeOn[j] == true)
       {
-        if (probeOn[j] == true)
+        for (i = 0; i < 100; i++)
         {
+
           if (triggerMode == 2) //Checking if trigger mode is in trigger mode
           {
-            Serial.println(String(j) + ":" + (String((i + 50) % 100) + ":" + String(data[j][(i + triggerCount) % 100])));     // send 100 points to processing/ scope
+            probeData[j] += data[j][(i + triggerCount) % 100];     // send 100 points to processing/ scope
             data[j][(i + triggerCount) % 100] = 0; //Setting all the values back to 0
           }
           if (triggerMode == 1) //Checking if trigger mode in free running
           {
-            Serial.println(String(j) + ":" + (String(i) + ":" + String(data[j][i]))); // Send datapoints to processing/ scope
+            probeData[j] += data[j][i];
+            probeData[j] += ":";
           }
         }
+        Serial.println(probeData[j]);
+        probeData[j].remove(7, probeData[j].length());
       }
     }
     if (triggerMode == 1)
       TIMSK1 |= (1 << OCIE1A);     //start timer
+
     triggerCount = 0;             //Reset trigger count
     flag = 1;                     // wait for next full buffer
-    Serial.println("1055" );      // special code for processing -- end of dataframe
+    Serial.println("1055");      // special code for processing -- end of dataframe
   }
 
   //Checking if data is availeble to read

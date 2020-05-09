@@ -25,6 +25,8 @@ int avrg = 0;                 //the average of the 100 values
 int triggerMode = 1;          //1 == freerun, 2 == triggerMode
 int calVal = 675;             //the calibrate value
 int trigger_level = 512;      //default trigger level
+boolean display_probe1 = true;
+boolean display_probe2 = true;
 
 /**************************************************************************************************************
  *scopeScreen: displays the black scope screen area
@@ -36,7 +38,7 @@ void scopeScreen() {
   strokeWeight(1);
   fill(0);
   rect(x_start, y_start, x_end - x_start, y_end - y_start); //create the black rectangle for the background of the scope
-  
+
   stroke(255); //make the lines white
   for (j = x_start; j <= x_end; j = j + 100)
     line(j, y_start, j, y_end); // vertical lines
@@ -52,18 +54,25 @@ void scopeScreen() {
 void display_values() {
   color c_probe1 = color(238, 255, 5);
   color c_probe2 = color(15, 255, 239);
-  
-  display_probe(probe2, c_probe2);
-  display_probe(probe1, c_probe1);
+
+  if(display_probe2)
+    display_probe(probe2, c_probe2);
+  if(display_probe1)
+    display_probe(probe1, c_probe1);
 }
 
-void display_probe(int probe, color c){
+/*************************************************************************************************************************************************
+ *display_probe: displays the values of a probe as a graph on the scope screen area and calculates the avarage and peak-peak values for that probe
+ *args: int probe
+ *returns: none
+ *************************************************************************************************************************************************/
+void display_probe(int probe, color c) {
   int val_low = 1023;  //value set to max
   int val_high = 0;    //value set to min
   int total = 0;       //total of the probe values
   int pk_pk = 0;       //peak to peak value
   int avrg_V = 0;      //average voltage
-  
+
   strokeWeight(3);     //set the style for the yellow line
   stroke(c);
   fill(c);
@@ -97,22 +106,28 @@ void calibrate_values() {
     calVal = avrg; //set the calVal to the average of the last measurements
 }
 
+void send_command(int c, int value) {
+  myPort.write(Integer.toString(c)); //write the values to the serial port
+  myPort.write(':');
+  myPort.write(Integer.toString(value));
+  myPort.write('\n');
+}
 /**************************************************************************************************************
  *setup: initialises a serial connection
-         initialises the buttons and puts them on the screen
-         initialises the scope screen
+ initialises the buttons and puts them on the screen
+ initialises the scope screen
  *args: none
  *returns: none
  *************************************************************************************************************/
 void setup() {
   frameRate(10);
-  size( 1300, 720 );
+  size( 1300, 800 );
   background(51);
 
   //on windows it wil always be Serial.list()[0], might be different on other systems
   String portName = Serial.list()[0];
   println(" port used : " + portName);
-  myPort = new Serial(this, portName, 115200);
+  myPort = new Serial(this, portName, 250000);
   myPort.clear(); //clear all the messages in the serial port in case there are half messages in there
   myPort.readStringUntil(10);
   init_buttons(); //initialise the buttons and display them
@@ -122,16 +137,16 @@ void setup() {
 
 /**************************************************************************************************************
  *draw: checks the serial port if data is available
-          -if a command is send handle it
-        checks the buttons if any of them is pressed
-          -if a button is pressed sends data to the serial port
+ -if a command is send handle it
+ checks the buttons if any of them is pressed
+ -if a button is pressed sends data to the serial port
  *args: none
  *returns: none
  *************************************************************************************************************/
 void draw() {
   String data[] = new String[1]; //string to store the incomming data
   button b_loop;  //button object
-  
+
   while (myPort.available() > 10)  //check if at least 4 bytes are available
   {
     String input = myPort.readStringUntil(10);  // 10 = clear line feed bytes send as data frame
@@ -144,10 +159,14 @@ void draw() {
         scopeScreen();
         display_values();
         break;
+      case 1056:
+        if(data.length > 101)
+          for(i = 0; i < 100; i++)
+            values[int(data[1])][i] = int(data[i+2]);
       default:
-        if (data.length > 2) {
-          values[int(data[0])][int(data[1])] = int(data[2]);//store the values in the data array
-        }
+        //if (data.length > 2) {
+        //  values[int(data[0])][int(data[1])] = int(data[2]);//store the values in the data array
+        //}
         break;
       }
     }
@@ -163,17 +182,11 @@ void draw() {
     case 1: //trigger mode
       triggerMode = b_loop.value;
     case 2: //wave function - currently not in use
-      myPort.write(Integer.toString(b_loop.command)); //write the values to the serial port
-      myPort.write(':');
-      myPort.write(Integer.toString(b_loop.value));
-      myPort.write('\n');
+      send_command(b_loop.command, b_loop.value);
       break;
     case 3: //trigger level
       trigger_level = constrain(b_loop.value + trigger_level, 0, 1023); //constrain the value between 0 and 1023
-      myPort.write(Integer.toString(b_loop.command)); //write the values to the serial port
-      myPort.write(':');
-      myPort.write(Integer.toString(trigger_level));
-      myPort.write('\n');
+      send_command(b_loop.command, trigger_level);
       fill(51); //set the style to display the new trigger level
       noStroke();
       rect(1080, 44 + but_Y_size  + but_spacing, 200, 60);
@@ -187,6 +200,14 @@ void draw() {
       light_out_button(b_loop); //puts the light out of the calibrate button
       calibrate_values();  //calibrates the value
       break;
+    case 5:
+      send_command(b_loop.command, b_loop.value);
+      light_out_button(b_loop);
+      
+      if(b_loop.value == 0)
+        display_probe1 = !display_probe1;
+      if(b_loop.value == 1)
+        display_probe2 = !display_probe2;
     default:
       break;
     }
