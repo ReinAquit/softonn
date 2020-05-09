@@ -16,7 +16,7 @@ bool triggered = false;
 char triggerMode = 1;
 volatile static char triggerCount = 0;
 int waveForm = 1;
-
+bool probeOn[] = {true, true};
 //Degine the types of signals in a lookup table
 uint8_t signals[3][20] =
 {
@@ -118,7 +118,7 @@ void setup()
 ISR(TIMER2_COMPA_vect)
 {
   static long long DACCount = 0;
-  
+
   if (signals[waveForm][(DACCount >> 8) % 20] > uint8_t(DACCount & 255)) // vergelijk de counter met de waarde van de lookup table
   {
     PORTD |= B00001100; //Toggle pin 2 & 3 to genarate PWM
@@ -128,7 +128,7 @@ ISR(TIMER2_COMPA_vect)
     PORTD &= B11110011; //Toggle pin 2 & 3 to genarate PWM
   }
   DACCount += 16;
-  
+
 }
 
 
@@ -200,16 +200,19 @@ void loop()
     //Loop trough the buffer
     for (i = 0; i < 100; i++)
     {
-      for (j = 0; j < 2; j++) 
+      for (j = 0; j < 2; j++)
       {
-        if (triggerMode == 2) //Checking if trigger mode is in trigger mode
+        if (probeOn[j] == true)
         {
-          Serial.println(String(j)+ ":" + (String((i + 50) % 100) + ":" + String(data[j][(i + triggerCount) % 100])));      // send 100 points to processing/ scope
-          data[j][(i + triggerCount) % 100] = 0; //Setting all the values back to 0
-        }
-        if (triggerMode == 1) //Checking if trigger mode in free running
-        {
-          Serial.println(String(j) + ":" + (String(i) + ":" + String(data[j][i]))); // Send datapoints to processing/ scope
+          if (triggerMode == 2) //Checking if trigger mode is in trigger mode
+          {
+            Serial.println(String(j) + ":" + (String((i + 50) % 100) + ":" + String(data[j][(i + triggerCount) % 100])));     // send 100 points to processing/ scope
+            data[j][(i + triggerCount) % 100] = 0; //Setting all the values back to 0
+          }
+          if (triggerMode == 1) //Checking if trigger mode in free running
+          {
+            Serial.println(String(j) + ":" + (String(i) + ":" + String(data[j][i]))); // Send datapoints to processing/ scope
+          }
         }
       }
     }
@@ -265,6 +268,8 @@ void loop()
       case '3': //switching tigger mode
         triggerVal = value;
         break;
+      case '5':
+        probeOn[value] = !probeOn[value];
       default:
         break;      //I want to break free
     }
