@@ -44,12 +44,7 @@ void init_buttons() {
   //the button array |   (cast to button array) |processing array function( |the array to append to   |new button object( button syntax ) );
   //buttons          | = (buttons[])            |append(                    |buttons                  |new button(  top_left_x, top_left_y, "text to be displayed", (byte)command, value) );
   buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60, "trigger mode", (byte)1, 2));
-  
-  //buttons for the wave functions, currently not in use
-  //buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * 2 + but_spacing * 2, "square", (byte)2, 1));
-  //buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * 2 + but_spacing * 2, "sine", (byte)2, 2));
-  //buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * 3 + but_spacing * 3, "sawtooth", (byte)2, 3));
-  
+    
   text("trigger level = " + trigger_level, 1080, 40 + but_Y_size * 2 + but_spacing * 2);
   buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * 2 + but_spacing * 2, "- 10", (byte)3, -10));
   buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * 2 + but_spacing * 2, "+ 10", (byte)3, 10));
@@ -57,6 +52,10 @@ void init_buttons() {
   buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * 3 + but_spacing * 3, "+ 1", (byte)3, 1));
   text("calibrate", 1080, 40 + but_Y_size * 5 + but_spacing * 5);
   buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * 5 + but_spacing * 5, "calibrate", (byte)4, -1));
+  
+    buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * 7 + but_spacing * 7, "square", (byte)2, 0));
+  buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * 7 + but_spacing * 7, "sine", (byte)2, 1));
+  buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * 8 + but_spacing * 8, "sawtooth", (byte)2, 2));
 }
 
 /*********************************************************************************************************************
