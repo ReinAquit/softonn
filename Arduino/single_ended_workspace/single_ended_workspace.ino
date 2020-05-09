@@ -80,7 +80,6 @@ void setup()
   // enable timer compare interrupt
   TIMSK1 |= (1 << OCIE1A);
 
-
   //Setup timer 2 at 25.6kHz
   /*
     16.000.000/8 = 2.000.000 -- prescaler of 8
@@ -89,14 +88,12 @@ void setup()
     (3.200/2.000.000)*100 = 0.16%
     Dus 0.16% Fout marge per seconde
   */
-
-  //code voor Franc interrupt timer 2 instellen
   
     TCCR2A = 0;// set entire TCCR2A register to 0
     TCCR2B = 0;// same for TCCR2B
     TCNT2  = 0;//initialize counter value to 0
 
-    OCR2A = 73 - 1; //Time compare register
+    OCR2A = 78 - 1; //Time compare register
     // turn on CTC mode
     TCCR2A |= (1 << WGM20);
     // Set CS21 bit for 8 prescaler
