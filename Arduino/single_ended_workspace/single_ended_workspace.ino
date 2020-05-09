@@ -81,28 +81,29 @@ void setup()
   TIMSK1 |= (1 << OCIE1A);
 
 
-  //Setup timer 2 at 256kHz
+  //Setup timer 2 at 25.6kHz
   /*
-    16.000.000/256.000 = 62.5
-    0.5*256.000 = 128.000
-    (128.000/16.000.000)*100 = 0.8%
-    Dus 0.8% Fout marge per seconde
+    16.000.000/8 = 2.000.000 -- prescaler of 8
+    2.000.000/25.600 = 78.125
+    0.125*25.600 = 3.200
+    (3.200/2.000.000)*100 = 0.16%
+    Dus 0.16% Fout marge per seconde
   */
 
   //code voor Franc interrupt timer 2 instellen
-  /*
+  
     TCCR2A = 0;// set entire TCCR2A register to 0
     TCCR2B = 0;// same for TCCR2B
     TCNT2  = 0;//initialize counter value to 0
 
-    OCR2A = 63 - 1; //Time compare register
+    OCR2A = 73 - 1; //Time compare register
     // turn on CTC mode
     TCCR2A |= (1 << WGM20);
-    // Set CS20 bit for 0 prescaler
+    // Set CS21 bit for 8 prescaler
     TCCR2B |=  (1 << CS21);
     // enable timer compare interrupt
     TIMSK2 |= (1 << OCIE2A);
-  */
+  
   sei();//allow interrupts
 
   DDRD |= 1 << (PWM_SINUS_OUTPUT_BIT); // Set output port PINB3 (Arduino board pin 11)
@@ -115,24 +116,25 @@ void setup()
 *args: TIMER2_COMPA_vect
 *returns: none
 **********************************************************************************************************/
-/*
+//1uF & 10k Ohm
+
   ISR(TIMER2_COMPA_vect)
   {
-  static long long DACCount = 0;
-  PORTB |= B00100000;
-  if(signals[waveForm][(DACCount >> 8) % 20] > uint8_t(DACCount & 255)) // vergelijk de counter met de waarde van de lookup table
-  {
-    PORTD |= B00001100; //Toggle pin 2 & 3 to genarate PWM
-  }
-  else
-  {
-    PORTD &= B11110011; //Toggle pin 2 & 3 to genarate PWM
-  }
-  DACCount++;
+    static long long DACCount = 0;
+    PORTB |= B00100000;
+    if(signals[waveForm][(DACCount >> 8) % 20] > uint8_t(DACCount & 255)) // vergelijk de counter met de waarde van de lookup table
+    {
+      PORTD |= B00001100; //Toggle pin 2 & 3 to genarate PWM
+    }
+    else
+    {
+      PORTD &= B11110011; //Toggle pin 2 & 3 to genarate PWM
+    }
+    DACCount++;
 
-  PORTB &= ~B00100000;
+    PORTB &= ~B00100000;
   }
-*/
+
 
 
 /*********************************************************************************************************
