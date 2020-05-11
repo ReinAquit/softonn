@@ -5,11 +5,15 @@
 
 //Define the signal output pin
 #define PWM_SINUS_OUTPUT_BIT    PIND2   //PWM pin digital 2
-
+#define PROBES 1
+#define BUFSIZE 100
+#define HALF_BUFSIZE 50
 //storage variables
 boolean flag = 1;
+boolean resetCounter = false;
+int bufferFlag = 0;
 boolean toggle = 0; //!
-unsigned int data[2][100];
+unsigned int data[4][100];
 String val;
 int triggerVal = 512;
 bool triggered = false;
@@ -17,10 +21,10 @@ char triggerMode = 1;
 volatile static char triggerCount = 0;
 int waveForm = 1;
 bool probeOn[] = {true, true};
-
-String probeData[2] = {"1056:0:", "1056:1:"};
+String probeData = "1056:0:";
 //Degine the types of signals in a lookup table
-uint8_t signals[3][20] =
+
+int signals[4][20] =
 {
   { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     0,   0,   0,   0,   0,   0,   0,   0,   0,   0
@@ -30,7 +34,10 @@ uint8_t signals[3][20] =
   }, //sinus 128sin(0.1*x*pi)+128
   { 13,  26,  39,  52,  64,  77,  90, 103, 116, 128,
     141, 154, 167, 180, 192, 205, 218, 231, 244, 255
-  } //sawtooth
+  }, //sawtooth
+  { 128,  128,  128,  128,  128,  128,  128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128
+  } //DAC values
 };
 //   0    1    2    3    4    5    6    7    8    9
 
@@ -56,7 +63,7 @@ void ACD_init()
 void setup()
 {
   //Begin serial comunications
-  Serial.begin(250000);
+  Serial.begin(115200);
 
   //Setting pins 13, 2, 3 & 4 as output
   pinMode(13, OUTPUT);
@@ -95,9 +102,9 @@ void setup()
   TCCR2B = 0;// same for TCCR2B
   TCNT2  = 0;//initialize counter value to 0
 
-  OCR2A = 20 - 1; //Time compare register
+  OCR2A = 160 - 1; //Time compare register
   // turn on CTC mode
-  TCCR2A |= (1 << WGM20);
+  TCCR2A |= (1 << WGM21);
   // Set CS21 bit for 8 prescaler
   TCCR2B |=  (1 << CS21);
   // enable timer compare interrupt
@@ -105,7 +112,7 @@ void setup()
 
   sei();//allow interrupts
 
-  DDRD |= 1 << (PWM_SINUS_OUTPUT_BIT); // Set output port PINB3 (Arduino board pin 11)
+  DDRD |= 1 << (PWM_SINUS_OUTPUT_BIT); // Set output port PIND2 (Arduino board pin 2)
 }
 
 
@@ -116,18 +123,17 @@ void setup()
   returns: none
 **********************************************************************************************************/
 //1uF & 10k Ohm
-
 ISR(TIMER2_COMPA_vect)
 {
   static long long DACCount = 0;
 
-  if (signals[waveForm][(DACCount >> 8) % 20] > uint8_t(DACCount & 255)) // vergelijk de counter met de waarde van de lookup table
+  if (signals[waveForm][(DACCount >> 8) % 20] > int(DACCount & 255)) // vergelijk de counter met de waarde van de lookup table
   {
-    PORTD |= B00001100; //Toggle pin 2 & 3 to genarate PWM
+    PORTD |= B00000100; //Toggle pin 2 to genarate PWM
   }
   else
   {
-    PORTD &= B11110011; //Toggle pin 2 & 3 to genarate PWM
+    PORTD &= B11111011; //Toggle pin 2 to genarate PWM
   }
   DACCount += 16;
 
@@ -145,30 +151,36 @@ ISR(TIMER1_COMPA_vect)
   //loads a sample buffer of 100 at 1 sample every 1ms
   static char count = 0;
 
-  ADMUX = (1 << REFS0);                 ////reset ADC multiplexer
-  ADCSRA |= (1 << ADSC);                // start a new conversion will take approximately 21us
-  while (ADCSRA & (1 << ADSC));         //wait for conversion to complete (long overdue)
-  data[0][count] = int(ADCL | (ADCH << 8));
+  if (probeOn[0]) {
+    ADMUX = (1 << REFS0);                 ////reset ADC multiplexer
+    ADCSRA |= (1 << ADSC);                // start a new conversion will take approximately 21us
+    while (ADCSRA & (1 << ADSC));         //wait for conversion to complete (long overdue)
+    data[bufferFlag][count] = int(ADCL | (ADCH << 8));
+  }
 
   //Load data in array
-  ADMUX |= B00000001;                 ////reset ADC multiplexer
-  ADCSRA |= (1 << ADSC);                // start a new conversion will take approximately 21us
-  while (ADCSRA & (1 << ADSC));
-  data[1][count] = int(ADCL | (ADCH << 8));
+  //if(probeOn[1]){
+  //ADMUX |= B00000001;                   //set ADC multiplexer
+  //ADCSRA |= (1 << ADSC);                // start a new conversion will take approximately 21us
+  //while (ADCSRA & (1 << ADSC));
+  //data[bufferFlag + 1][count] = int(ADCL | (ADCH << 8));
+  //}
 
   //Checking is the trigger mode is in trigger mode
   if (triggerMode == 2) {
-    if (data[count] >= triggerVal && triggered == false) {    //When the data value is higher than the trigger value then thrigger once
+    if (data[bufferFlag][count] >= triggerVal && triggered == false) {    //When the data value is higher than the trigger value then thrigger once
       triggered = true;                                       //Triggerd
       triggerCount = count;                                   //set trigger count
     }
 
     //Resetting counter back to 0 when it hits 100
-    if (count++ == 100)
+    if (count++ == BUFSIZE || resetCounter) {
       count = 0;
+      resetCounter = false;
+    }
 
     //Check is the buffer count is 50 point above trigger count
-    if ((triggered == true) && (count == (triggerCount + 50) % 100)) {
+    if ((triggered == true) && (count == (triggerCount + HALF_BUFSIZE) % BUFSIZE)) {
       TIMSK1 = 0;     //buffer full stop timer interrupt
       flag = 0;       //let the main know that timer is full
       count = 0;      //Counter back to 0
@@ -178,7 +190,7 @@ ISR(TIMER1_COMPA_vect)
   }
   //Chekcing if triggermode is free running
   else if (triggerMode == 1) {
-    if (count++ == 100)
+    if (count++ == BUFSIZE)
     {
       TIMSK1 = 0;     //buffer full stop timer interrupt
       flag = 0;       //let the main know that timer is full
@@ -197,38 +209,41 @@ void loop()
 {
   byte i, j; //Index, byte becouse it is used in a string function
 
+
   if (!flag)                        // wait for ISR buffer to fill to 100
   {
-    //Loop trough the buffer
-    for (j = 0; j < 2; j++)
-    {
-      if (probeOn[j] == true)
-      {
-        for (i = 0; i < 100; i++)
-        {
 
-          if (triggerMode == 2) //Checking if trigger mode is in trigger mode
-          {
-            probeData[j] += data[j][(i + triggerCount) % 100];     // send 100 points to processing/ scope
-            data[j][(i + triggerCount) % 100] = 0; //Setting all the values back to 0
-          }
-          if (triggerMode == 1) //Checking if trigger mode in free running
-          {
-            probeData[j] += data[j][i];
-            probeData[j] += ":";
-          }
-        }
-        Serial.println(probeData[j]);
-        probeData[j].remove(7, probeData[j].length());
-      }
-    }
-    if (triggerMode == 1)
+    if (triggerMode == 1) {
       TIMSK1 |= (1 << OCIE1A);     //start timer
+      bufferFlag = (bufferFlag == 2) ? 0 : 2;
+    }
 
-    triggerCount = 0;             //Reset trigger count
     flag = 1;                     // wait for next full buffer
+    for (j = 0; j < PROBES; j++) {
+      probeData[5] = '0' + j;
+      //Loop trough the buffer
+      for (i = 0; i < BUFSIZE; i++)
+      {
+        if (triggerMode == 2) //Checking if trigger mode is in trigger mode
+        {
+          probeData += data[bufferFlag + j] [(i + triggerCount + 50) % 100];     // send 100 points to processing/ scope
+          probeData += ":";
+          data[bufferFlag + j][(i + triggerCount + 50) % 100] = 0; //Setting all the values back to 0
+        }
+        if (triggerMode == 1) //Checking if trigger mode in free running
+        {
+          probeData += data[2 - bufferFlag + j][i];
+          probeData += ":";
+        }
+      }
+      Serial.println(probeData);
+      probeData.remove(7, probeData.length());
+      probeData.trim();
+    }
+    triggerCount = 0;             //Reset trigger count
     Serial.println("1055");      // special code for processing -- end of dataframe
   }
+
 
   //Checking if data is availeble to read
   if (Serial.available())
@@ -263,20 +278,27 @@ void loop()
           triggerMode = 2;
           TIMSK1 |= (1 << OCIE1A);     //start timer
           triggered = false;           //Not so triggerd
-          for (i = 0; i < 100; i ++)
-            data[0][i] = 0;
+          resetCounter = true;
+
           digitalWrite(13, HIGH);     //Set LED high to display trigger active
         }
         sei();
         break;
       case '2': //Switching wave form code
         waveForm = value;
+        
         break;
       case '3': //switching tigger mode
         triggerVal = value;
+        
         break;
       case '5':
         probeOn[value] = !probeOn[value];
+        
+      case '6':
+        for (i = 0; i < 20; i++)
+          signals[3][i] = (value << 4);
+          
       default:
         break;      //I want to break free
     }
