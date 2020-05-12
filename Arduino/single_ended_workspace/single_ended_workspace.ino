@@ -8,6 +8,7 @@
 #define PROBES 1
 #define BUFSIZE 100
 #define HALF_BUFSIZE 50
+
 //storage variables
 boolean flag = 1;
 boolean resetCounter = false;
@@ -20,7 +21,7 @@ bool triggered = false;
 char triggerMode = 1;
 volatile static char triggerCount = 0;
 int waveForm = 1;
-bool probeOn[] = {true, true};
+bool probeOn[PROBES] = {true};
 String probeData = "1056:0:";
 //Degine the types of signals in a lookup table
 

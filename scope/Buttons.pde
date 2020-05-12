@@ -44,21 +44,19 @@ void init_buttons() {
   //format for putting more buttons in the array:
   //the button array |   (cast to button array) |processing array function( |the array to append to   |new button object( button syntax ) );
   //buttons          | = (buttons[])            |append(                    |buttons                  |new button(  top_left_x, top_left_y, "text to be displayed", (byte)command, value) );
-  buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60, "trigger mode", (byte)1, 2));
-  
-  text("probes", 1080, 40 + but_Y_size * ++but_row + but_spacing * but_row);
-  buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * but_row + but_spacing * but_row, "probe 1", (byte)5, 0));
-  buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * but_row + but_spacing * but_row++, "probe 2", (byte)5, 1));
-  
+  //buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60, "trigger mode", (byte)1, 2));
+    
+  /*
   text("trigger level = " + trigger_level, 1080, 40 + but_Y_size * ++but_row + but_spacing * but_row);
   buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * but_row + but_spacing * but_row, "- 10", (byte)3, -10));
   buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * but_row + but_spacing * but_row++, "+ 10", (byte)3, 10));
   buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * but_row + but_spacing * but_row, "- 1", (byte)3, -1));
   buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * but_row + but_spacing * but_row++, "+ 1", (byte)3, 1));
-  
+  */
   text("calibrate", 1080, 40 + but_Y_size * ++but_row + but_spacing * but_row);
   buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * but_row + but_spacing * but_row++, "calibrate", (byte)4, -1));
   
+  /*
   text("wave function", 1080, 40 + but_Y_size * ++but_row + but_spacing * but_row);
   buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * but_row + but_spacing * but_row, "square", (byte)2, 0));
   buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * but_row + but_spacing * but_row++, "sine", (byte)2, 1));
@@ -66,8 +64,9 @@ void init_buttons() {
   buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * but_row + but_spacing * but_row++, "DAC", (byte)2, 3));
   
   text("DAC level = ", 1080, 40 + but_Y_size * ++but_row + but_spacing * but_row);
-  buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * but_row + but_spacing * but_row, "- 0.3125", (byte)6, -16));
-  buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * but_row + but_spacing * but_row++, "+ 0.3125", (byte)6, 16));
+  buttons = (button[])append(buttons, new button(1080, 60 + but_Y_size * but_row + but_spacing * but_row, "- 0.3125", (byte)6, -1));
+  buttons = (button[])append(buttons, new button(1080 + but_X_size + but_spacing, 60 + but_Y_size * but_row + but_spacing * but_row++, "+ 0.3125", (byte)6, 1));
+  */
 }
 
 /*********************************************************************************************************************

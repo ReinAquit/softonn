@@ -25,8 +25,9 @@ int avrg = 0;                 //the average of the 100 values
 int triggerMode = 1;          //1 == freerun, 2 == triggerMode
 int calVal = 675;             //the calibrate value
 int trigger_level = 512;      //default trigger level
+int DAC_level = 8;
 boolean display_probe1 = true;
-boolean display_probe2 = true;
+boolean display_probe2 = false;
 
 /**************************************************************************************************************
  *scopeScreen: displays the black scope screen area
@@ -55,10 +56,11 @@ void display_values() {
   color c_probe1 = color(238, 255, 5);
   color c_probe2 = color(15, 255, 239);
 
-  if(display_probe2)
+  if (display_probe2)
     display_probe(probe2, c_probe2);
-  if(display_probe1)
+  if (display_probe1)
     display_probe(probe1, c_probe1);
+  
 }
 
 /*************************************************************************************************************************************************
@@ -120,14 +122,14 @@ void send_command(int c, int value) {
  *returns: none
  *************************************************************************************************************/
 void setup() {
-  frameRate(10);
+  //frameRate(10);
   size( 1300, 800 );
   background(51);
 
   //on windows it wil always be Serial.list()[0], might be different on other systems
   String portName = Serial.list()[0];
   println(" port used : " + portName);
-  myPort = new Serial(this, portName, 250000);
+  myPort = new Serial(this, portName, 115200);
   myPort.clear(); //clear all the messages in the serial port in case there are half messages in there
   myPort.readStringUntil(10);
   init_buttons(); //initialise the buttons and display them
@@ -158,15 +160,13 @@ void draw() {
       case 1055:
         scopeScreen();
         display_values();
+        println(millis());
         break;
       case 1056:
-        if(data.length > 101)
-          for(i = 0; i < 100; i++)
+        if (data.length > 101)
+          for (i = 0; i < 100; i++)
             values[int(data[1])][i] = int(data[i+2]);
       default:
-        //if (data.length > 2) {
-        //  values[int(data[0])][int(data[1])] = int(data[2]);//store the values in the data array
-        //}
         break;
       }
     }
@@ -181,7 +181,7 @@ void draw() {
     switch(b_loop.command) {
     case 1: //trigger mode
       triggerMode = b_loop.value;
-    case 2: //wave function - currently not in use
+    case 2: //wave function
       send_command(b_loop.command, b_loop.value);
       break;
     case 3: //trigger level
@@ -203,11 +203,15 @@ void draw() {
     case 5:
       send_command(b_loop.command, b_loop.value);
       light_out_button(b_loop);
-      
-      if(b_loop.value == 0)
+
+      if (b_loop.value == 0)
         display_probe1 = !display_probe1;
-      if(b_loop.value == 1)
+      if (b_loop.value == 1)
         display_probe2 = !display_probe2;
+    case 6:
+      DAC_level = constrain(b_loop.value + DAC_level, 0, 16);
+      println(DAC_level * 0.3125);
+      send_command(b_loop.command, DAC_level);
     default:
       break;
     }
